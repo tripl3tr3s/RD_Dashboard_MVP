@@ -3,7 +3,7 @@
 A comprehensive cryptocurrency and traditional market analytics dashboard providing real-time insights for retail investors and DAO participants.
 
 ## 🚀 Live Demo
-[Dashboard URL will be here after deployment]
+[RetailDAO-Dashboard-MVP](https://mvpdashboardretaildao.streamlit.app/)
 
 ## 📊 Features
 
@@ -47,7 +47,7 @@ retailDAO-Analytics-MVP/
 │   ├── dxy_analysis.py      # DXY analysis component
 │   ├── etf_flows.py         # ETF flows visualization
 │   ├── funding_rates.py     # Perp funding rates component
-│   └── rsi_widget.py        # RSI gauge widget
+│   
 ├── data/                    # Data processing modules
 │   ├── __pycache__/
 │   ├── __init__.py
@@ -164,7 +164,6 @@ DEBUG_MODE=False
 The dashboard is optimized for:
 - Desktop browsers (primary experience)
 - Tablet viewing
-- Mobile responsiveness
 - High-resolution displays
 
 ## 🤝 Contributing
@@ -175,12 +174,6 @@ This is an MVP for RetailDAO. For feature requests or bug reports, please contac
 
 [License type to be specified]
 
-## 📞 Support
-
-For technical support or questions about this MVP:
-- Email: [support-email]
-- Documentation: [docs-link]
-- Issues: [github-issues-link]
 
 ---
 
