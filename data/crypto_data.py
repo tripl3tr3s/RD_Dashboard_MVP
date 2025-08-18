@@ -106,11 +106,11 @@ class CryptoDataFetcher:
     
     @cache_data(ttl=300)
     def get_current_prices(self) -> Dict[str, Dict[str, float]]:
-        """Get current prices for BTC and ETH"""
+        """Get current prices for BTC, ETH, and SOL"""
         try:
             url = "https://api.coingecko.com/api/v3/simple/price"
             params = {
-                'ids': 'bitcoin,ethereum',
+                'ids': 'bitcoin,ethereum,solana',  # Added solana for SOL
                 'vs_currencies': 'usd',
                 'include_24hr_change': 'true'
             }
@@ -125,11 +125,16 @@ class CryptoDataFetcher:
                 'ETH': {
                     'price': data['ethereum']['usd'],
                     'change_24h': data['ethereum']['usd_24h_change']
+                },
+                'SOL': {
+                    'price': data['solana']['usd'],
+                    'change_24h': data['solana']['usd_24h_change']
                 }
             }
         except Exception as e:
             print(f"Error fetching current prices: {e}")
             return {
                 'BTC': {'price': 0, 'change_24h': 0},
-                'ETH': {'price': 0, 'change_24h': 0}
+                'ETH': {'price': 0, 'change_24h': 0},
+                'SOL': {'price': 0, 'change_24h': 0}
             }
