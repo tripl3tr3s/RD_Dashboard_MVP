@@ -35,9 +35,6 @@ def get_flow_interpretation(flow_7d: float, asset: str) -> tuple:
 
 def mock_etf_flows():
     """Mock ETF flows data with realistic patterns"""
-    random.seed(42)  # For reproducible results, remove for true randomness
-    np.random.seed(42)
-    
     two_months_ago = datetime.now() - timedelta(days=60)
     history = []
     
