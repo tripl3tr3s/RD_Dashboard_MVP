@@ -1,5 +1,5 @@
+# etf_flows.py
 import streamlit as st
-from data.traditional_data import TraditionalDataFetcher
 from utils.formatters import format_currency, format_percentage
 import pandas as pd
 from datetime import datetime, timedelta
@@ -31,13 +31,41 @@ def get_flow_interpretation(flow_7d: float, asset: str) -> tuple:
             return desc, color
     return "Very Strong Outflows", "#ff5757"
 
+def mock_etf_flows():
+    """Mock ETF flows data (realistic based on current inflows ~$548M for BTC)"""
+    two_months_ago = datetime.now() - timedelta(days=60)
+    history = [
+        {
+            'timestamp': int((two_months_ago + timedelta(days=i)).timestamp() * 1000),
+            'flow_usd': 50000000 * (1 if i % 3 == 0 else -1),  # Alternating inflows/outflows
+            'price_usd': 116800 + (i * 100)  # Simulated prices around 116k-118k
+        } for i in range(60)
+    ]
+    return {
+        'BTC': {
+            'summary': {
+                'net_flow_7d': 548000000,  # $548M
+                'net_flow_1d': 100000000,
+                'change_pct': 1.2,
+                'total_aum': 152000000000,  # $152B
+            },
+            'history': history
+        },
+        'ETH': {
+            'summary': {
+                'net_flow_7d': 29000000,  # $29M mock
+                'net_flow_1d': 5000000,
+                'change_pct': 0.5,
+                'total_aum': 20000000000,  # $20B mock
+            },
+            'history': []  # No history needed for ETH in mock
+        }
+    }
+
 def render_etf_flows():
     """Render ETF flows component"""
-    traditional_fetcher = TraditionalDataFetcher()
-    
-    # Fetch ETF flow data
-    with st.spinner("Loading ETF flow data..."):
-        etf_flows = traditional_fetcher.get_etf_flows()
+    # Use mock data instead of API
+    etf_flows = mock_etf_flows()
     
     st.markdown('<div class="metric-card">', unsafe_allow_html=True)
     
@@ -49,9 +77,7 @@ def render_etf_flows():
             df = pd.DataFrame(btc_history)
             df['date'] = pd.to_datetime(df['timestamp'] / 1000, unit='s')
             df = df.sort_values('date')  # Oldest to newest
-            # Filter to last 2 months
-            two_months_ago = datetime.now() - timedelta(days=60)
-            df = df[df['date'] >= two_months_ago]
+            # Filter to last 2 months (already in mock)
             
             if not df.empty:
                 fig = go.Figure()
@@ -65,8 +91,6 @@ def render_etf_flows():
                 ))
                 # Line for BTC price
                 if 'price_usd' in df.columns and not df['price_usd'].empty:
-                    # Ensure price_usd is within a reasonable range, default to 116800 if invalid
-                    df['price_usd'] = df['price_usd'].apply(lambda x: max(100000, min(125000, x)) if pd.notna(x) else 116800)
                     fig.add_trace(go.Scatter(
                         x=df['date'],
                         y=df['price_usd'],
@@ -84,7 +108,7 @@ def render_etf_flows():
                     legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1, font=dict(color='white')),
                     plot_bgcolor='black',
                     paper_bgcolor='black',
-                    height=300,
+                    height=300,  # Smaller height to fit layout
                     margin=dict(l=40, r=40, t=40, b=40),
                 )
                 st.plotly_chart(fig, use_container_width=True)
@@ -138,8 +162,8 @@ def render_etf_flows():
     
     st.markdown('</div>', unsafe_allow_html=True)
     
-    # Market context
-    total_flows = sum(data['summary'].get('net_flow_7d', 0) for data in etf_flows.values() if etf_flows)
+    # Market context (with safe access to avoid KeyError)
+    total_flows = sum(data.get('summary', {}).get('net_flow_7d', 0) for data in etf_flows.values())
     flow_color = "positive" if total_flows > 0 else "negative" if total_flows < 0 else "neutral"
     
     st.markdown(f"""
