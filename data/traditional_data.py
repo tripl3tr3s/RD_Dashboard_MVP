@@ -2,6 +2,7 @@ import streamlit as st
 import requests
 import pandas as pd
 import numpy as np
+import random
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional
 from .cache_utils import cache_data
@@ -139,7 +140,7 @@ class TraditionalDataFetcher:
     
     @cache_data(ttl=3600)
     def get_dxy_data(self, days: int = 90) -> pd.DataFrame:
-        """Get real DXY data from Alpha Vantage (approximation via USD/EUR), with mock fallback"""
+        """Get real DXY data from Alpha Vantage (approximation via USD/EUR), with enhanced mock fallback"""
         try:
             api_key = st.secrets["general"]["ALPHA_VANTAGE_API_KEY"]
             url = f"https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol=USDEUR&apikey={api_key}"
@@ -166,47 +167,111 @@ class TraditionalDataFetcher:
             return self._get_mock_dxy_data(days)
     
     def _get_mock_dxy_data(self, days: int = 90) -> pd.DataFrame:
-        """Generate mock DXY data"""
-        np.random.seed(int(datetime.now().timestamp()) // 3600)  # Change hourly
+        """Generate realistic mock DXY data with natural patterns and momentum"""
+        # Don't use seed for true randomness each time
+        
         end_date = datetime.now()
-        dates = pd.date_range(end=end_date, periods=days, freq='B')  # Business days
-        # Generate realistic DXY values with a random walk around 100
-        dxy_values = 100 + np.cumsum(np.random.normal(0, 0.2, days))
+        dates = pd.date_range(end=end_date, periods=days, freq='D')
+        
+        # Start with realistic DXY base around 103-105
+        base_dxy = random.uniform(103.5, 104.8)
+        dxy_values = []
+        
+        # Create periods of sustained trends (like real DXY movements)
+        for i in range(days):
+            # Create weekly trend cycles
+            period_length = random.randint(5, 12)  # 5-12 day trends
+            period_index = i // period_length
+            
+            # Different trend biases for different periods
+            trend_patterns = [0.8, -0.3, 1.2, -0.6, 0.5, -0.9, 1.1, -0.4, 0.7, -0.8]
+            trend_bias = trend_patterns[period_index % len(trend_patterns)]
+            
+            # Base daily change (DXY typically moves 0.1-0.5 per day)
+            base_change = random.uniform(-0.15, 0.15) * trend_bias
+            
+            # Add momentum effect (DXY tends to continue trends)
+            if i > 0:
+                prev_change = dxy_values[i-1] - (dxy_values[i-2] if i > 1 else base_dxy)
+                momentum_factor = 0.4 if abs(prev_change) > 0.1 else 0.2
+                momentum = momentum_factor * prev_change
+                base_change += momentum
+            
+            # Occasional volatility spikes (news events, Fed announcements)
+            if random.random() < 0.05:  # 5% chance of high volatility day
+                volatility_multiplier = random.uniform(2.0, 4.0)
+                base_change *= volatility_multiplier
+            
+            # Add some natural noise
+            noise = random.uniform(-0.05, 0.05)
+            daily_change = base_change + noise
+            
+            # Calculate new value
+            if i == 0:
+                new_value = base_dxy + daily_change
+            else:
+                new_value = dxy_values[i-1] + daily_change
+            
+            # Keep DXY in realistic range (95-110)
+            new_value = max(95.0, min(110.0, new_value))
+            dxy_values.append(new_value)
+        
         df = pd.DataFrame({
             'date': dates,
             'dxy': dxy_values
         }).sort_values('date').reset_index(drop=True)
-        logger.info(f"Generated mock DXY data: {len(df)} rows from {df['date'].min()} to {df['date'].max()}")
+        
+        logger.info(f"Generated realistic mock DXY data: {len(df)} rows from {df['date'].min()} to {df['date'].max()}")
         return df
     
     def get_dxy_analysis(self) -> Dict[str, Any]:
-        """Get DXY analysis and interpretation based on real or mock data"""
+        """Get enhanced DXY analysis and interpretation based on real or mock data"""
         try:
             df = self.get_dxy_data(days=30)
             if df.empty:
                 return {}
+            
             current_dxy = df['dxy'].iloc[-1]
             prev_dxy = df['dxy'].iloc[-2] if len(df) > 1 else current_dxy
-            week_ago_dxy = df['dxy'].iloc[-7] if len(df) > 7 else current_dxy
+            week_ago_dxy = df['dxy'].iloc[-7] if len(df) >= 7 else current_dxy
+            month_ago_dxy = df['dxy'].iloc[0] if len(df) >= 30 else current_dxy
+            
+            # Calculate changes
             daily_change = current_dxy - prev_dxy
             weekly_change = current_dxy - week_ago_dxy
-            if daily_change > 0.1:
-                trend, impact, color = "Rising Strongly", "Risk-Off (Bearish for Crypto)", "#ff5757"
-            elif daily_change > 0:
-                trend, impact, color = "Rising", "Slight Risk-Off", "#ff8c42"
-            elif daily_change < -0.1:
-                trend, impact, color = "Falling Strongly", "Risk-On (Bullish for Crypto)", "#00d4aa"
-            elif daily_change < 0:
-                trend, impact, color = "Falling", "Slight Risk-On", "#4ecdc4"
+            monthly_change = current_dxy - month_ago_dxy
+            
+            # Enhanced trend analysis
+            weekly_pct = (weekly_change / week_ago_dxy) * 100 if week_ago_dxy != 0 else 0
+            monthly_pct = (monthly_change / month_ago_dxy) * 100 if month_ago_dxy != 0 else 0
+            
+            # Determine trend strength and crypto impact
+            if daily_change > 0.15:
+                trend, impact, color = "Rising Strongly", "Strong Risk-Off (Very Bearish for Crypto)", "#ff3333"
+            elif daily_change > 0.05:
+                trend, impact, color = "Rising", "Risk-Off (Bearish for Crypto)", "#ff6666"
+            elif daily_change > -0.05:
+                trend, impact, color = "Consolidating", "Neutral Sentiment", "#ffcc00"
+            elif daily_change > -0.15:
+                trend, impact, color = "Falling", "Risk-On (Bullish for Crypto)", "#66ff66"
             else:
-                trend, impact, color = "Stable", "Neutral", "#a0a0a0"
+                trend, impact, color = "Falling Strongly", "Strong Risk-On (Very Bullish for Crypto)", "#00ff00"
+            
+            # Determine overall strength level
+            strength_level = "High" if abs(daily_change) > 0.1 else "Moderate" if abs(daily_change) > 0.05 else "Low"
+            
             return {
                 'current_value': current_dxy,
                 'daily_change': daily_change,
+                'daily_change_pct': (daily_change / prev_dxy) * 100 if prev_dxy != 0 else 0,
                 'weekly_change': weekly_change,
+                'weekly_change_pct': weekly_pct,
+                'monthly_change': monthly_change,
+                'monthly_change_pct': monthly_pct,
                 'trend': trend,
                 'impact': impact,
                 'color': color,
+                'strength_level': strength_level,
                 'dataframe': df
             }
         except Exception as e:

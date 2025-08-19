@@ -4,10 +4,9 @@ import pandas as pd
 import numpy as np
 import plotly.graph_objects as go
 from data.crypto_data import CryptoDataFetcher
-from components.etf_flows import render_etf_flows  # Import the render_etf_flows function
+from data.traditional_data import TraditionalDataFetcher  # Import the enhanced class
+from components.etf_flows import render_etf_flows
 from utils.formatters import apply_custom_css, format_currency, format_percentage, get_color_for_change
-
-# No need for TraditionalDataFetcher since we're mocking DXY
 
 st.set_page_config(
     page_title="RetailDAO Analytics Dashboard - MVP",
@@ -74,25 +73,150 @@ def calculate_rsi(prices: pd.Series, period: int) -> float:
     rsi = 100 - (100 / (1 + rs))
     return rsi.iloc[-1]
 
-def mock_dxy_data(days: int = 30) -> pd.DataFrame:
-    """Mock DXY data (falling trend around current real value ~98)"""
-    dates = pd.date_range(end=datetime.now(), periods=days, freq='D')
-    dxy_values = np.linspace(100, 98, days)  # Simulated falling from 100 to 98
-    return pd.DataFrame({'date': dates, 'dxy': dxy_values})
-
-def mock_dxy_analysis(dxy_data: pd.DataFrame) -> dict:
-    """Mock DXY analysis based on data"""
-    current_value = dxy_data['dxy'].iloc[-1]
-    diff_mean = dxy_data['dxy'].diff().mean()
-    trend = "Falling Strongly" if diff_mean < -0.1 else "Falling" if diff_mean < 0 else "Rising"
-    color = "#FF0000" if "Falling" in trend else "#00FF00"  # Red for falling (positive for crypto)
-    impact = "Positive for risk assets like crypto" if "Falling" in trend else "Negative for risk assets"
-    return {
-        "current_value": f"{current_value:.2f}",
-        "trend": trend,
-        "color": color,
-        "impact": impact
-    }
+def render_enhanced_dxy_chart(dxy_analysis):
+    """Render enhanced DXY chart with better visualization"""
+    if not dxy_analysis or 'dataframe' not in dxy_analysis:
+        st.markdown('<div style="text-align: center; color: #a0a0a0;">No DXY data available.</div>', unsafe_allow_html=True)
+        return
+    
+    dxy_data = dxy_analysis['dataframe']
+    
+    if dxy_data.empty:
+        st.markdown('<div style="text-align: center; color: #a0a0a0;">No DXY data available.</div>', unsafe_allow_html=True)
+        return
+    
+    # Create enhanced plotly chart
+    fig_dxy = go.Figure()
+    
+    def hex_to_rgba(hex_color, alpha=0.1):
+        """Convert hex color to rgba string"""
+        if hex_color.startswith('#'):
+            hex_color = hex_color[1:]
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            return f"rgba({r}, {g}, {b}, {alpha})"
+        except:
+            return f"rgba(255, 255, 0, {alpha})"  # Fallback yellow
+    
+    # Add main DXY line with gradient effect
+    fig_dxy.add_trace(go.Scatter(
+        x=dxy_data['date'], 
+        y=dxy_data['dxy'], 
+        mode='lines',
+        name='DXY',
+        line=dict(
+            color=dxy_analysis.get('color', '#FFFF00'), 
+            width=3,
+            shape='spline'  # Smooth line
+        ),
+        fill='tozeroy',
+        fillcolor=hex_to_rgba(dxy_analysis.get('color', '#FFFF00'), 0.1)  # Semi-transparent fill
+    ))
+    
+    # Add trend indicators
+    current_value = dxy_analysis.get('current_value', 0)
+    daily_change = dxy_analysis.get('daily_change', 0)
+    
+    # Add current value annotation
+    fig_dxy.add_annotation(
+        x=dxy_data['date'].iloc[-1],
+        y=current_value,
+        text=f"<b>{current_value:.2f}</b><br><span style='font-size:10px'>{daily_change:+.2f}</span>",
+        showarrow=True,
+        arrowhead=2,
+        ax=0,
+        ay=-50,
+        font=dict(size=14, color="#FAFAFA"),
+        bgcolor="rgba(0, 0, 0, 0.8)",
+        bordercolor=dxy_analysis.get('color', '#FFFF00'),
+        borderwidth=2,
+        arrowcolor=dxy_analysis.get('color', '#FFFF00')
+    )
+    
+    # Add horizontal reference lines
+    min_val, max_val = dxy_data['dxy'].min(), dxy_data['dxy'].max()
+    mid_val = (min_val + max_val) / 2
+    
+    # Support/Resistance levels
+    fig_dxy.add_hline(
+        y=min_val, 
+        line_dash="dot", 
+        line_color="rgba(255,255,255,0.3)",
+        annotation_text=f"Low: {min_val:.2f}",
+        annotation_position="top right"
+    )
+    fig_dxy.add_hline(
+        y=max_val, 
+        line_dash="dot", 
+        line_color="rgba(255,255,255,0.3)",
+        annotation_text=f"High: {max_val:.2f}",
+        annotation_position="bottom right"
+    )
+    
+    # Chart layout with enhanced styling
+    fig_dxy.update_layout(
+        template='plotly_dark',
+        paper_bgcolor='#1e2329',
+        plot_bgcolor='#1e2329',
+        font_color='#FAFAFA',
+        margin=dict(l=20, r=20, t=20, b=20),
+        height=320,
+        showlegend=False,
+        xaxis=dict(
+            showticklabels=True,
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.1)',
+            title=None
+        ),
+        yaxis=dict(
+            showticklabels=True, 
+            title=None,
+            showgrid=True,
+            gridcolor='rgba(255,255,255,0.1)',
+            range=[min_val - 0.5, max_val + 0.5]
+        )
+    )
+    
+    st.plotly_chart(fig_dxy, use_container_width=True)
+    
+    # Enhanced status display
+    trend = dxy_analysis.get('trend', 'N/A')
+    impact = dxy_analysis.get('impact', 'N/A')
+    color = dxy_analysis.get('color', '#a0a0a0')
+    strength = dxy_analysis.get('strength_level', 'N/A')
+    weekly_change = dxy_analysis.get('weekly_change', 0)
+    weekly_pct = dxy_analysis.get('weekly_change_pct', 0)
+    
+    # Create status card
+    st.markdown(f"""
+    <div style="background: linear-gradient(135deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)); 
+                padding: 15px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.1);
+                margin-top: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="color: #a0a0a0; font-size: 12px;">Current Value</span>
+            <span style="color: white; font-weight: 700; font-size: 16px;">{current_value:.2f}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="color: #a0a0a0; font-size: 12px;">Daily Change</span>
+            <span style="color: {color}; font-weight: 600; font-size: 14px;">{daily_change:+.3f} ({dxy_analysis.get('daily_change_pct', 0):+.2f}%)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <span style="color: #a0a0a0; font-size: 12px;">Weekly Change</span>
+            <span style="color: {color}; font-weight: 600; font-size: 14px;">{weekly_change:+.3f} ({weekly_pct:+.2f}%)</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <span style="color: #a0a0a0; font-size: 12px;">Trend Strength</span>
+            <span style="color: white; font-weight: 600; font-size: 14px;">{strength}</span>
+        </div>
+        <div style="text-align: center; margin-top: 10px; padding: 8px; 
+                    background: rgba(0,0,0,0.3); border-radius: 6px; border-left: 3px solid {color};">
+            <div style="color: {color}; font-weight: 700; font-size: 13px; margin-bottom: 3px;">{trend}</div>
+            <div style="color: #a0a0a0; font-size: 11px;">{impact}</div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 def main():
     apply_custom_css()
@@ -104,6 +228,7 @@ def main():
     
     with st.spinner("Loading data..."):
         crypto_fetcher = CryptoDataFetcher()
+        traditional_fetcher = TraditionalDataFetcher()  # Use the enhanced fetcher
         
         btc_df = crypto_fetcher.get_btc_price_data()
         # Compute RSIs from BTC price data (reuses the working CoinGecko call)
@@ -112,66 +237,101 @@ def main():
         rsi_30d = calculate_rsi(btc_df['price'], 30) if not btc_df.empty else None
         funding_rates = crypto_fetcher.get_funding_rates_7d_avg()  # Already mock
         current_prices = crypto_fetcher.get_current_prices()
-        # Mock DXY (no API)
-        dxy_data = mock_dxy_data(days=30)
-        dxy_analysis = mock_dxy_analysis(dxy_data)
+        # Enhanced DXY with natural randomness
+        dxy_analysis = traditional_fetcher.get_dxy_analysis()
 
-    # Row 1: BTC Chart (2 columns) and Mini DXY Chart (1 column)
+    # Row 1: BTC Chart (2 columns) and Enhanced DXY Chart (1 column)
     with st.container():
         col1, col2 = st.columns([2, 1])
         
         with col1:
             st.subheader("BTC Price with Ribbon MAs")
             fig = go.Figure()
-            fig.add_trace(go.Scatter(x=btc_df['date'], y=btc_df['price'], mode='lines', name='Price', line=dict(color='#FFA500')))
-            fig.add_trace(go.Scatter(x=btc_df['date'], y=btc_df['MA_20'], name='20d MA', line=dict(color='#00FFFF')))
-            fig.add_trace(go.Scatter(x=btc_df['date'], y=btc_df['MA_50'], name='50d MA', line=dict(color='#00FFAA')))
-            fig.add_trace(go.Scatter(x=btc_df['date'], y=btc_df['MA_100'], name='100d MA', line=dict(color='#00AAFF')))
-            fig.add_trace(go.Scatter(x=btc_df['date'], y=btc_df['MA_200'], name='200d MA', line=dict(color='#AA00FF')))
+            
+            # Add MA traces first (so they appear behind the price)
+            fig.add_trace(go.Scatter(
+                x=btc_df['date'], 
+                y=btc_df['MA_200'], 
+                name='200d MA', 
+                line=dict(color='#AA00FF', width=2),
+                opacity=0.8
+            ))
+            fig.add_trace(go.Scatter(
+                x=btc_df['date'], 
+                y=btc_df['MA_100'], 
+                name='100d MA', 
+                line=dict(color='#00AAFF', width=2),
+                opacity=0.8
+            ))
+            fig.add_trace(go.Scatter(
+                x=btc_df['date'], 
+                y=btc_df['MA_50'], 
+                name='50d MA', 
+                line=dict(color='#00FFAA', width=2),
+                opacity=0.8
+            ))
+            fig.add_trace(go.Scatter(
+                x=btc_df['date'], 
+                y=btc_df['MA_20'], 
+                name='20d MA', 
+                line=dict(color='#00FFFF', width=2),
+                opacity=0.8
+            ))
+            
+            # Add BTC price line with fill
+            fig.add_trace(go.Scatter(
+                x=btc_df['date'], 
+                y=btc_df['price'], 
+                mode='lines', 
+                name='BTC Price', 
+                line=dict(color='#FFA500', width=3),
+                fill='tozeroy',
+                fillcolor='rgba(255, 165, 0, 0.1)'  # Orange with transparency
+            ))
+            
+            # Get price range for better y-axis scaling
+            price_min = btc_df['price'].min()
+            price_max = btc_df['price'].max()
+            price_range = price_max - price_min
+            y_min = price_min - (price_range * 0.05)  # 5% padding below
+            y_max = price_max + (price_range * 0.05)  # 5% padding above
+            
             fig.update_layout(
                 template='plotly_dark',
-                paper_bgcolor='#252a3a',
-                plot_bgcolor='#252a3a',
+                paper_bgcolor='#1e2329',
+                plot_bgcolor='#1e2329',
                 font_color='#FAFAFA',
-                margin=dict(l=20, r=20, t=40, b=20),
-                height=300,
-                width=600  # Adjusted width to fill the two-column space better
+                margin=dict(l=20, r=20, t=20, b=20),
+                height=555,  # Match DXY total height (chart + status card)
+                showlegend=True,
+                legend=dict(
+                    orientation='h',
+                    yanchor='bottom',
+                    y=1.02,
+                    xanchor='right',
+                    x=1,
+                    font=dict(size=10)
+                ),
+                xaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)',
+                    title=None
+                ),
+                yaxis=dict(
+                    showgrid=True,
+                    gridcolor='rgba(255,255,255,0.1)',
+                    title='Price (USD)',
+                    range=[y_min, y_max],
+                    tickformat='$,.0f'
+                )
             )
             st.plotly_chart(fig, use_container_width=True)
             st.markdown('<div class="widget-subtext" style="text-align: center;">Real data from CoinGecko.</div>', unsafe_allow_html=True)
         
         with col2:
-            st.subheader("DXY (Mini)")
-            if not dxy_data.empty:
-                latest_dxy = dxy_data['dxy'].iloc[-1] if not dxy_data.empty else "N/A"
-                fig_dxy = go.Figure(go.Scatter(x=dxy_data['date'], y=dxy_data['dxy'], mode='lines', line=dict(color='#FFFF00', width=2)))
-                fig_dxy.add_annotation(
-                    x=dxy_data['date'].iloc[-1],
-                    y=latest_dxy,
-                    text=f"{latest_dxy:.2f}",
-                    showarrow=True,
-                    arrowhead=2,
-                    ax=0,
-                    ay=-40,
-                    font=dict(size=14, color="#FAFAFA"),
-                    bgcolor="rgba(0, 0, 0, 0.7)"
-                )
-                fig_dxy.update_layout(
-                    template='plotly_dark',
-                    paper_bgcolor='#252a3a',
-                    plot_bgcolor='#252a3a',
-                    font_color='#FAFAFA',
-                    margin=dict(l=20, r=20, t=40, b=20),
-                    height=300,
-                    showlegend=False,
-                    xaxis=dict(showticklabels=False),
-                    yaxis=dict(showticklabels=True, title=None)
-                )
-                st.plotly_chart(fig_dxy, use_container_width=True)
-                st.markdown(f'<div class="widget-subtext" style="text-align: center;">Current: {dxy_analysis.get("current_value", "N/A")} | Trend: <span style="color: {dxy_analysis.get("color", "#a0a0a0")};">{dxy_analysis.get("trend", "N/A")}</span></div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div style="text-align: center; color: #a0a0a0;">No DXY data available.</div>', unsafe_allow_html=True)
-            st.markdown('<div class="widget-subtext" style="text-align: center;">Mock data (realistic simulation).</div>', unsafe_allow_html=True)
+            st.subheader("US Dollar Index (DXY)")
+            render_enhanced_dxy_chart(dxy_analysis)
+            st.markdown('<div class="widget-subtext" style="text-align: center;">Mock data used.</div>', unsafe_allow_html=True)
 
     # Row 2: Funding, ETF, RSI
     with st.container():
