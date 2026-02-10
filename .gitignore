@@ -1,0 +1,212 @@
+# Python-specific files
+
+*.pyc
+pycache/
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+*.whl
+
+# Virtual environment
+
+MVPenv/
+venv/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# Environment variables and secrets
+
+.env
+.env.local
+.env.development
+.env.production
+.streamlit/secrets.toml
+
+# Streamlit-specific
+
+.streamlit/cache/
+.streamlit/logs/
+.streamlit/*.log
+
+# IDE and editor files
+
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*~
+
+# System files
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Dependency management
+
+pip-log.txt
+Pipfile.lock
+
+# Testing and coverage
+
+.coverage
+coverage.xml
+*.cover
+htmlcov/
+pytest_cache/
+
+# Logs and temporary files
+
+*.log
+.log.*
+.tmp
+temp/
+tmp/
+
+# Jupyter notebooks
+
+.ipynb_checkpoints/
+
+# Package manager caches
+
+.pip_cache/
+.wheel_cache/
+
+# Miscellaneous
+
+*.bak
+*.swp
+*.swo
+*.cache
+*.pid
+*.seed
+*.pid.lock
+
+# Project-specific
+
+*.sqlite3
+*.db
+*.sql
+*.dump
+
+# Documentation (not tracked)
+CLAUDE.md
+CLIENT_PRESENTATION.md
+
+# API keys and tokens
+*.key
+*.pem
+*.p12
+*.pfx
+config.ini
+settings.ini
+local_settings.py
+secrets.py
+credentials.json
+service-account*.json
+*-key.json
+*.keystore
+.credentials/
+
+# AWS
+.aws/
+aws-credentials
+.boto
+credentials.csv
+
+# Google Cloud
+gcloud/
+.gcp/
+application_default_credentials.json
+
+# Azure
+.azure/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db3
+*.s3db
+*.sl3
+
+# Database connection files
+database.ini
+db_config.py
+connection_strings.txt
+
+# Certificates and keys
+*.crt
+*.cert
+*.ca-bundle
+*.p7b
+*.p7s
+*.spc
+ssl/
+certs/
+
+# Docker secrets
+docker-compose.override.yml
+.dockerignore
+Dockerfile.local
+
+# Server configs
+nginx.conf
+apache.conf
+.htaccess
+.htpasswd
+
+# Deployment scripts with secrets
+deploy.sh
+deployment_config.yml
+
+# Data files that might contain PII
+
+datasets/
+uploads/
+user_data/
+*.csv
+*.xlsx
+*.json
+*.xml
+*.parquet
+
+# Session storage
+sessions/
+.sessions/
+flask_session/
+
+# Additional cache
+.cache/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+
+# App configs
+app_config.py
+local_config.py
+production_config.py
+config.yaml
+config.yml
+settings.yaml
+settings.yml
+
+# Backups that might contain sensitive data
+*.backup
+*.bak
+*.old
+backup/
+backups/
+dumps/
+
+# Logs that might contain sensitive data
+logs/
+*.log
+*.err
+*.out
